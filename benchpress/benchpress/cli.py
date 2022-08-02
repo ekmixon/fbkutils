@@ -41,14 +41,14 @@ def benchpress(ctx, verbose, suites):
     logging.basicConfig(format="%(levelname)s:%(name)s: %(message)s", level=log_level)
     logger = logging.getLogger(__name__)
 
-    logger.info('Loading suites from "{}"'.format(suites))
+    logger.info(f'Loading suites from "{suites}"')
     suite_configs = yaml.load(suites)
 
     suites = [Suite.instantiate(s) for s in suite_configs]
     suites = {s.name: s for s in suites}
     ctx.obj["suites"] = suites
 
-    logger.info("Loaded {} test suites".format(len(suites)))
+    logger.info(f"Loaded {len(suites)} test suites")
 
 
 @benchpress.command()
@@ -61,15 +61,17 @@ def run(ctx, suite, cases, output_json):
 
     reporter = ReporterFactory.create("default")
     if suite not in ctx.obj["suites"]:
-        logger.error('No suite "{}" found'.format(suite))
+        logger.error(f'No suite "{suite}" found')
         sys.exit(1)
     suite = ctx.obj["suites"][suite]
 
     print(f'Running "{suite.name}"')
-    if not cases:
-        cases = None
-    else:
-        cases = [DiscoveredTestCase(name=c, description="") for c in cases]
+    cases = (
+        [DiscoveredTestCase(name=c, description="") for c in cases]
+        if cases
+        else None
+    )
+
     results = suite.run(cases)
     if output_json:
         reporter = ReporterFactory.create("json")
@@ -91,4 +93,4 @@ def list_suites(ctx, suite):
             print(f"  {case.name}: {case.description}")
         return
     for suite in suites.values():
-        click.echo("{}: {}".format(suite.name, suite.description))
+        click.echo(f"{suite.name}: {suite.description}")

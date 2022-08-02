@@ -14,7 +14,7 @@ def isFloat(s):
 #--- putHtml
 def putHtml(fout, fieldList, path, fname, link, title):
 #  fout.write('Content-type: text/html\n\n')
-    fout.write('<HTML> <HEAD> <TITLE>'+title+' </TITLE> </HEAD>'+'\n')
+    fout.write(f'<HTML> <HEAD> <TITLE>{title} </TITLE> </HEAD>' + '\n')
     fout.write('<BODY>\n')
 #  fout.write(inputLine+'\n')
     fout.write('<FORM name="table" method="post" action="http://localhost/Exp/cgi-exec/exp.py" enctype="multipart/form-data">\n')
@@ -27,19 +27,16 @@ def putHtml(fout, fieldList, path, fname, link, title):
 
 #----- putCsvHeader
 def putCsvHeader(fout, fieldList):
-    count = 0
-    for f in fieldList:
+    for count, f in enumerate(fieldList):
         if count == 0:
             fout.write(f)
         else:
-            fout.write(','+f)
-        count += 1
+            fout.write(f',{f}')
     fout.write('\n')
 
 #--- putCsvRow
 def putCsvRow(fout, rowDict, fieldList):
-    count = 0
-    for f in fieldList:
+    for count, f in enumerate(fieldList):
         if f in rowDict:
             v = str(rowDict[f])
             v = v.strip()
@@ -50,21 +47,19 @@ def putCsvRow(fout, rowDict, fieldList):
         if count == 0:
             fout.write(v)
         else:
-            fout.write(','+v)
-        count += 1
+            fout.write(f',{v}')
     fout.write('\n')
 
 def getFloat(s):
     n = len(s)
     if s[n-1:] == 'M':
-        val = float(s[:n-1]) * 1000000
+        return float(s[:n-1]) * 1000000
     elif s[n-1:] == 'K':
-        val = float(s[:n-1]) * 1000
+        return float(s[:n-1]) * 1000
     elif s[n-1:] == 'G':
-        val = float(s[:n-1]) * 1000000000
+        return float(s[:n-1]) * 1000000000
     else:
-        val = float(s)
-    return val
+        return float(s)
 
 def processRow(fieldList, fieldVal, fieldOpDict):
     global desc

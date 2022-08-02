@@ -212,10 +212,7 @@ class TestSuite(unittest.TestCase):
         second = mock.second
 
         def get_mock_hook(name):
-            if name == "first":
-                return first
-            else:
-                return second
+            return first if name == "first" else second
 
         HookFactory.create.side_effect = get_mock_hook
 

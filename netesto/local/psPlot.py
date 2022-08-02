@@ -107,8 +107,8 @@ class PsPlot(object):
         while w/f >= 100:
             f *= 10
 #    w = int(w/f)
-        v0 = int(v0/f)
-        v1 = int(v1/f)
+        v0 //= f
+        v1 //= f
         if (vMin % f) != 0  and  vMax == v1:
             v1 += 1
         w = v1 - v0
@@ -122,17 +122,13 @@ class PsPlot(object):
             while w/m > 100:
                 m *= 10
             if (v0 >= 0) and (v0 % m) != 0:
-                v0 = int(v0 / m) * m
+                v0 = v0 // m * m
             if (v1 % m) != 0:
-                v1 = int(v1 / m) * m + m
+                v1 = v1 // m * m + m
                 w = v1 - v0
-                if w <= 5*m:
-                    vInc = m/2
-                else:
-                    vInc = m
+                vInc = m/2 if w <= 5*m else m
             else:
                 vInc = m
-
 #    if (vMax/f)%vInc != 0  or  v1 % vInc != 0:
         if v1 % vInc != 0:
             v1 = int(v1/vInc)*vInc + vInc
@@ -161,26 +157,25 @@ class PsPlot(object):
             s = int(v/(1000000000/d))/d
             if s*d == int(s)*d:
                 s = int(s)
-            r = str(s) + 'G'
+            return f'{str(s)}G'
 
         elif v >= 1000000 and inc > 1:
             s = int(v/(1000000/d))/d
             if s*d == int(s)*d:
                 s = int(s)
-            r = str(s) + 'M'
+            return f'{str(s)}M'
         elif v >= 1000 and inc > 1:
             s = int(v/(1000/d))/d
             if s*d == int(s)*d:
                 s = int(s)
-            r = str(s) + 'K'
+            return f'{str(s)}K'
         elif v >= 1:
             s = int(v*d)/d
             if s*d == int(s)*d:
                 s = int(s)
-            r = str(s)
+            return str(s)
         else:
-            r = str(int(v*100)/100.0)
-        return r
+            return str(int(v*100)/100.0)
 
 #--- GetAxis(vBeg, vEnd, vInc, logFlag)
 #
@@ -401,17 +396,29 @@ class PsPlot(object):
 #--- SetColor(color)
 #
     def SetColor(self, color):
-        rv = ' { '+str(color[0])+' '+str(color[1])+' '+str(color[2])+ \
-             ' setrgbcolor } '
-        return rv
+        return (
+            ' { '
+            + str(color[0])
+            + ' '
+            + str(color[1])
+            + ' '
+            + str(color[2])
+            + ' setrgbcolor } '
+        )
 
 #--- GetColorIndx(indx)
 #
     def GetColorIndx(self, indx):
         color = self.colors[indx % self.colorsN]
-        rv = ' { '+str(color[0])+' '+str(color[1])+' '+str(color[2])+ \
-             ' setrgbcolor } '
-        return rv
+        return (
+            ' { '
+            + str(color[0])
+            + ' '
+            + str(color[1])
+            + ' '
+            + str(color[2])
+            + ' setrgbcolor } '
+        )
 
 #--- SetColorIndx(indx, r, g, b)
 #
@@ -512,7 +519,7 @@ class PsPlot(object):
 #
     def GetImage(self):
         flog = self.flog
-        print >>self.fout, 'showpage\n'
+        flog = self.flog
         self.fout.flush()
         os.fsync(self.fout)
         if self.plotsPerPage == 1:
@@ -521,14 +528,15 @@ class PsPlot(object):
             xres = int(100 * self.xSize * 6.5 / (1200 * self.xLen))
             yres = int(110 * self.ySize / 550)
             res = ' -r%dx%d ' % (xres, yres)
-            cmdStr = gsPath + ' -sDEVICE=jpeg'+size+'-sOutputFile='+self.foutPath+self.foutName+'.jpg -dNOPAUSE '+ res +self.fname+' -c quit'
-#            cmdStr = gsPath + ' -sDEVICE=jpeg'+size+'-sOutputFile='+self.foutPath+self.foutName+'.jpg -dNOPAUSE -r100x100 '+self.fname+' -c quit'
+            cmdStr = f'{gsPath} -sDEVICE=jpeg{size}-sOutputFile={self.foutPath}{self.foutName}.jpg -dNOPAUSE {res}{self.fname} -c quit'
+
         else:
             size = ' -g1200x1100 '
-            cmdStr = gsPath + ' -sDEVICE=jpeg'+size+'-sOutputFile='+self.foutPath+self.foutName+'%d.jpg -dNOPAUSE -r100x100 '+self.fname+' -c quit'
-        print >>flog, 'cmdStr: ', cmdStr
+            cmdStr = f'{gsPath} -sDEVICE=jpeg{size}-sOutputFile={self.foutPath}{self.foutName}%d.jpg -dNOPAUSE -r100x100 {self.fname} -c quit'
+
+        flog = self.flog
         output = commands.getoutput(cmdStr)
-        print >>flog, 'output from gs command: ', output
+        flog = self.flog
         return self.foutPath+self.foutName+'.jpg'
 
 

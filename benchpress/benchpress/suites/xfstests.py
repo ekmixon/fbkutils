@@ -36,7 +36,7 @@ class XfstestsSuite(Suite):
             return TestStatus[status]
         except KeyError:
             try:
-                return TestStatus[status + "ED"]
+                return TestStatus[f"{status}ED"]
             except KeyError:
                 logger.warning(f'No such status "{status}(ED)"')
                 return None
@@ -65,12 +65,11 @@ class XfstestsSuite(Suite):
         try:
             with open("exclude_list", "r", errors="backslashreplace") as f:
                 for line in f:
-                    match = exclude_list_re.match(line)
-                    if match:
-                        reason = match.group("reason")
+                    if match := exclude_list_re.match(line):
+                        reason = match["reason"]
                         if reason is None:
                             reason = ""
-                        excluded[match.group("test_name")] = reason
+                        excluded[match["test_name"]] = reason
         except OSError:
             pass
 
@@ -78,17 +77,15 @@ class XfstestsSuite(Suite):
             r"^(?P<test_name>\w+/\d+)\s+(?:\d+s\s+\.\.\.\s+)?(?P<status>.*)"
         )
         for line in stdout:
-            match = test_regex.match(line)
-            if match:
-                test_name = match.group("test_name")
+            if match := test_regex.match(line):
+                test_name = match["test_name"]
 
                 case = TestCaseResult(name=test_name, status=TestStatus.FATAL)
 
-                status = match.group("status")
-                duration_match = re.fullmatch(r"(\d+(?:\.\d+)?)s", status)
-                if duration_match:
+                status = match["status"]
+                if duration_match := re.fullmatch(r"(\d+(?:\.\d+)?)s", status):
                     case.status = TestStatus.PASSED
-                    case.runtime = float(duration_match.group(1))
+                    case.runtime = float(duration_match[1])
                 elif status.startswith("[not run]"):
                     case.status = TestStatus.SKIPPED
                     case.details = self.not_run_details(test_name)
@@ -103,16 +100,16 @@ class XfstestsSuite(Suite):
 
     def not_run_details(self, test_name):
         try:
-            notrun = os.path.join(RESULTS_DIR, test_name + ".notrun")
+            notrun = os.path.join(RESULTS_DIR, f"{test_name}.notrun")
             with open(notrun, "r", errors="backslashreplace") as f:
-                return "Not run: " + f.read().strip()
+                return f"Not run: {f.read().strip()}"
         except OSError:
             return "Not run"
 
     @staticmethod
     def excluded_details(excluded, test_name):
         try:
-            return "Excluded: " + excluded[test_name]
+            return f"Excluded: {excluded[test_name]}"
         except KeyError:
             return "Excluded"
 
@@ -125,10 +122,10 @@ class XfstestsSuite(Suite):
 
     def append_diff(self, test_name, details):
         try:
-            out_path = os.path.join(TESTS_DIR, test_name + ".out")
+            out_path = os.path.join(TESTS_DIR, f"{test_name}.out")
             with open(out_path, "r", errors="backslashreplace") as f:
                 out = f.readlines()
-            out_bad_path = os.path.join(RESULTS_DIR, test_name + ".out.bad")
+            out_bad_path = os.path.join(RESULTS_DIR, f"{test_name}.out.bad")
             with open(out_bad_path, "r", errors="backslashreplace") as f:
                 out_bad = f.readlines()
         except OSError:
@@ -138,7 +135,7 @@ class XfstestsSuite(Suite):
         details.extend(diff)
 
     def append_full_output(self, test_name, details):
-        full_path = os.path.join(RESULTS_DIR, test_name + ".full")
+        full_path = os.path.join(RESULTS_DIR, f"{test_name}.full")
         try:
             # There are some absurdly large full results.
             if os.path.getsize(full_path) < 100_000:
@@ -151,7 +148,7 @@ class XfstestsSuite(Suite):
             pass
 
     def append_dmesg(self, test_name, details):
-        dmesg_path = os.path.join(RESULTS_DIR, test_name + ".dmesg")
+        dmesg_path = os.path.join(RESULTS_DIR, f"{test_name}.dmesg")
         try:
             with open(dmesg_path, "r", errors="backslashreplace") as f:
                 if details:

@@ -44,18 +44,16 @@ class GenericSuite(Suite):
             return TestStatus[status]
         except KeyError:
             try:
-                return TestStatus[status + "ED"]
+                return TestStatus[f"{status}ED"]
             except KeyError:
                 logger.warning(f'No such status "{status}(ED)"')
                 return None
 
     @staticmethod
     def parse_line(line: str) -> Optional[TestCaseResult]:
-        match = LINE_REGEX.match(line)
-        if match:
+        if match := LINE_REGEX.match(line):
             name = match.group(1)
-            status = GenericSuite.get_status_from_name(match.group(2))
-            if status:
+            if status := GenericSuite.get_status_from_name(match.group(2)):
                 return TestCaseResult(name=name, status=status)
         return None
 
@@ -64,8 +62,7 @@ class GenericSuite(Suite):
     ) -> Iterable[TestCaseResult]:
         for output in (stdout, stderr):
             for line in output:
-                case = self.parse_line(line)
-                if case:
+                if case := self.parse_line(line):
                     yield case
         # get a status for pseudo-case "generic" that is based on the exit code
         # and contains the subprocess exit code

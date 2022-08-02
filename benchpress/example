@@ -10,5 +10,5 @@ if arg == 'generic':
     print("case3 FAIL")
     print("case4: FAIL")
 
-if arg == 'returncode':
+elif arg == 'returncode':
     print()

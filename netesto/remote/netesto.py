@@ -129,10 +129,8 @@ funName = None		# Name of function being defined
 #--- init
 def init():
     global MSG_HEADER_LEN
-    k = 0
-    for f in MSG_FORMAT:
+    for k, f in enumerate(MSG_FORMAT):
         MSG_LEN[k] = struct.calcsize(f)
-        k += 1
     MSG_HEADER_LEN=struct.calcsize(MSG_HEADER_FORMAT)
 
 #--- doDebug
@@ -212,12 +210,12 @@ def mathIntegerExpression0(s, pos):
         elif c == '(':
             num,pos = mathIntegerExpression0(s, pos+1)
         if c == '+' or c == '-'  or c =='*' or c =='/' or c ==')' or pos == n-1:
-            if prevOp == '+':
+            if prevOp == '*':
+                stack.append(stack.pop() * num)
+            elif prevOp == '+':
                 stack.append(num)
             elif prevOp == '-':
                 stack.append(-num)
-            elif prevOp == '*':
-                stack.append(stack.pop() * num)
             elif prevOp == '/':
                 if num == 0:
                     error("Division by zero in SET command")
@@ -226,12 +224,12 @@ def mathIntegerExpression0(s, pos):
             prevOp = c
             num = 0
         elif c != '(' and (c < '0' or c > '9'):
-            error("Unknown character in mathExperssion: " + c)
+            error(f"Unknown character in mathExperssion: {c}")
         pos += 1
         if c == ')':
             break
     rv = 0
-    while len(stack) > 0:
+    while stack:
         rv += stack.pop()
     return rv,pos-1
 
@@ -242,16 +240,13 @@ def mathIntegerExpression(s):
 
 #--- sockName
 def sockName(sock):
-    if id(sock) in socketDict:
-        return socketDict[id(sock)]
-    else:
-        return 'NOT FOUND'
+    return socketDict[id(sock)] if id(sock) in socketDict else 'NOT FOUND'
 
 #--- closeClientSocket
 def closeClientSocket(sock, closeFlag):
     global socketDict, hostDict
 
-    doDebug("closing client socket " + sockName(sock))
+    doDebug(f"closing client socket {sockName(sock)}")
     hostDict[socketDict[id(sock)]] = None
     socketDict[id(sock)] = 'CLOSED'
     socketBufferDict[id(sock)] = ''
@@ -262,7 +257,7 @@ def closeClientSocket(sock, closeFlag):
 def closeAServerSocket(sock, closeFlag):
     global socketDict, readList
 
-    doDebug("closing server socket " + sockName(sock))
+    doDebug(f"closing server socket {sockName(sock)}")
     readList.remove(sock)
     socketDict[id(sock)] = "CLOSED"
     socketBufferDict[id(sock)] = ''
@@ -274,13 +269,13 @@ def closeAServerSocket(sock, closeFlag):
 def runCmd(cmdStr, outFilename=None):
     global noRunFlag
 
-    doDebug("runCmd: " + cmdStr + " outFile:" + str(outFilename))
+    doDebug(f"runCmd: {cmdStr} outFile:{str(outFilename)}")
     if noRunFlag:
         doDebug("-- Skipping beause of noRunFlag")
         return
     args = cmdStr.split()
     #subprocess.call(args)
-    if outFilename == None:
+    if outFilename is None:
         subprocess.Popen(args, ).pid
     else:
         outFile = open(outFilename, 'w')
@@ -320,92 +315,94 @@ def processExp(subdir):
     netperfList = []
     for file in files:
         if file.find('monitor') >= 0:
-            monitorList.append(subdir + '/' + file)
+            monitorList.append(f'{subdir}/{file}')
         elif file.find('ss') >= 0 and file.find('.out') >= 0:
-            monitorList.append(subdir + '/' + file)
+            monitorList.append(f'{subdir}/{file}')
         elif file.find('netperf') >= 0:
-            netperfList.append(subdir + '/' + file)
-    doDebug("monitorList: " + str(monitorList))
+            netperfList.append(f'{subdir}/{file}')
+    doDebug(f"monitorList: {str(monitorList)}")
 
-    cmd = ["./plotMonitor.py", "bytes_acked"]
-    cmd.extend(monitorList)
-    doDebug("Calling: " + str(cmd))
+    cmd = ["./plotMonitor.py", "bytes_acked", *monitorList]
+    doDebug(f"Calling: {str(cmd)}")
     subprocess.call(cmd)
     cmd = ["./plotMonitor.py", "cwnd"]
     cmd.extend(monitorList)
-    doDebug("Calling: " + str(cmd))
+    doDebug(f"Calling: {str(cmd)}")
     subprocess.call(cmd)
-    cmd = ["./plotMonitor.py", "unacked"]
-    cmd.extend(monitorList)
-    doDebug("Calling: " + str(cmd))
+    cmd = ["./plotMonitor.py", "unacked", *monitorList]
+    doDebug(f"Calling: {str(cmd)}")
     subprocess.call(cmd)
     cmd = ["./plotMonitor.py", "rtt"]
     cmd.extend(monitorList)
-    doDebug("Calling: " + str(cmd))
+    doDebug(f"Calling: {str(cmd)}")
     subprocess.call(cmd)
-    cmd = ["./plotMonitor.py", "minrtt"]
-    cmd.extend(monitorList)
-    doDebug("Calling: " + str(cmd))
+    cmd = ["./plotMonitor.py", "minrtt", *monitorList]
+    doDebug(f"Calling: {str(cmd)}")
     subprocess.call(cmd)
     cmd = ["./plotMonitor.py", "retrans"]
     cmd.extend(monitorList)
-    doDebug("Calling: " + str(cmd))
+    doDebug(f"Calling: {str(cmd)}")
     subprocess.call(cmd)
 
-    cmd = ["./plotNetperfRates.py"]
-    cmd.extend(netperfList)
-    doDebug("Calling: " + str(cmd))
+    cmd = ["./plotNetperfRates.py", *netperfList]
+    doDebug(f"Calling: {str(cmd)}")
     subprocess.call(cmd)
     cmd = ["./makeResultsPage.py", subdir]
-    doDebug("Calling: " + str(cmd))
+    doDebug(f"Calling: {str(cmd)}")
     subprocess.call(cmd)
 
     if not os.path.isfile('exp.csv'):
         p = os.getcwd()
         d = p[p.rfind('/'):]
-        cmd = ["./processExp.py",
-                "-c",
-                "--path=/Library/webServer/Documents/Exp" + d,
-                "--relPath=/Exp" + d]
-        doDebug("Calling: " + str(cmd))
+        cmd = [
+            "./processExp.py",
+            "-c",
+            f"--path=/Library/webServer/Documents/Exp{d}",
+            f"--relPath=/Exp{d}",
+        ]
+
+        doDebug(f"Calling: {str(cmd)}")
         subprocess.call(cmd)
 
     n = 0
     tx_packets_sum = 0
     retrans_packets_sum = 0
-    fout = open(subdir + '/all.exp.out', 'w')
-    for file in files:
-        if file.find('.exp.out') < 0:
-            continue
-        n += 1
-        fname = subdir + '/' + file
-        fin = open(fname, 'r')
-        for line in fin:
-            line = line.strip()
-            kv = line.split(':')
-            if len(kv) >= 2:
-                k, v = kv
-                if k == 'exp':
-                    v = v[:v.find('.')] + '.0'
-                elif k == 'client-tx-packets':
-                     tx_packets_sum += float(v)
-                elif k == 'retrans_total':
-                     retrans_packets_sum += float(v)
-                fout.write("%s:%s\n" % (k, v))
-        fin.close()
-
-    tx_packets_sum += 1
-    retransPktsPercent = 100.0 * retrans_packets_sum / tx_packets_sum
-    fout.write("retransPkts%%:%.2f\n" % (retransPktsPercent))
-    fout.write("-----\n")
-    fout.close()
+    with open(f'{subdir}/all.exp.out', 'w') as fout:
+        for file in files:
+            if file.find('.exp.out') < 0:
+                continue
+            n += 1
+            fname = f'{subdir}/{file}'
+            with open(fname, 'r') as fin:
+                for line in fin:
+                    line = line.strip()
+                    kv = line.split(':')
+                    if len(kv) >= 2:
+                        k, v = kv
+                        if k == 'exp':
+                            v = v[:v.find('.')] + '.0'
+                        elif k == 'client-tx-packets':
+                             tx_packets_sum += float(v)
+                        elif k == 'retrans_total':
+                             retrans_packets_sum += float(v)
+                        fout.write("%s:%s\n" % (k, v))
+        tx_packets_sum += 1
+        retransPktsPercent = 100.0 * retrans_packets_sum / tx_packets_sum
+        fout.write("retransPkts%%:%.2f\n" % (retransPktsPercent))
+        fout.write("-----\n")
     if n >= 1:
-        fname = subdir + '/all.exp.out'
-        if descStr == None:
-            cmd = ["./processExp.py", "-a", "--rfile="+fname, "--other="+otherStr]
+        fname = f'{subdir}/all.exp.out'
+        if descStr is None:
+            cmd = ["./processExp.py", "-a", f"--rfile={fname}", f"--other={otherStr}"]
         else:
-            cmd = ["./processExp.py", "-a", "--rfile="+fname,
-                   "--desc="+descStr, "--other="+otherStr]
+            cmd = [
+                "./processExp.py",
+                "-a",
+                f"--rfile={fname}",
+                "--desc=" + descStr,
+                "--other=" + otherStr,
+            ]
+
         doDebug("Calling: " + str(cmd))
         subprocess.call(cmd)
 
@@ -415,7 +412,7 @@ def processExp(subdir):
     for file in files:
         if file.find('.exp.out') > 0:
             fname = subdir + '/' + file
-            if descStr == None:
+            if descStr is None:
                 cmd = ["./processExp.py", "-a", "--rfile="+fname,
                         "--other="+otherStr]
             else:
@@ -426,32 +423,31 @@ def processExp(subdir):
 
 #--- readFile
 def readFile(sock, filename, size):
-    f = open("in_" + filename, "wb")
-    left = size
-    while left > 0:
-        b = read(sock, min(4096, left))
-        if b == '':
-            return ERROR
-        f.write(b)
-        left -= len(b)
-    if left > 0:
-        doDebug("Warning: readFile %s only read %d bytes of %d"
-            % (filename, size-left, size))
-    f.close()
+    with open(f"in_{filename}", "wb") as f:
+        left = size
+        while left > 0:
+            b = read(sock, min(4096, left))
+            if b == '':
+                return ERROR
+            f.write(b)
+            left -= len(b)
+        if left > 0:
+            doDebug("Warning: readFile %s only read %d bytes of %d"
+                % (filename, size-left, size))
     if filename.find('tgz') > 0:
-        cmd = ["tar", "-zxf", "in_" + filename]
-        doDebug("Calling: " + str(cmd))
+        cmd = ["tar", "-zxf", f"in_{filename}"]
+        doDebug(f"Calling: {cmd}")
         subprocess.call(cmd)
-        cmd = ["rm", "-f", "in_" + filename]
-        doDebug("Calling: " + str(cmd))
+        cmd = ["rm", "-f", f"in_{filename}"]
+        doDebug(f"Calling: {cmd}")
         subprocess.call(cmd)
 
 #--- rcvMsg
 def rcvMsg(sock):
-    doDebug("rcvMsg sock:" + str(sockName(sock)))
+    doDebug(f"rcvMsg sock:{str(sockName(sock))}")
     s = read(sock, 8)
     if len(s) == 0:
-        doDebug("read fails for " + sockName(sock))
+        doDebug(f"read fails for {sockName(sock)}")
         return ERROR, 0
     msgType, msgLen = struct.unpack(MSG_HEADER_FORMAT, s)
     if msgType > MSG_MAX:
@@ -461,12 +457,11 @@ def rcvMsg(sock):
 
     if msgType == MSG_RETURN_VALUE or msgLen == 0:
         return msgType, msgLen
-    else:
-        s = read(sock, MSG_LEN[msgType])
-        if len(s) == 0:
-            return ERROR, 0
-        msgData = struct.unpack(MSG_FORMAT[msgType], s)
-        return msgType, msgData
+    s = read(sock, MSG_LEN[msgType])
+    if len(s) == 0:
+        return ERROR, 0
+    msgData = struct.unpack(MSG_FORMAT[msgType], s)
+    return msgType, msgData
 
 #--- send
 def send(sock, s):
@@ -484,15 +479,16 @@ def send(sock, s):
 
 #--- createMsgHdr
 def createMsgHdr(sock, msgType, msgLen):
-    s = struct.pack(MSG_HEADER_FORMAT, msgType, msgLen)
     #send(sock, s)
-    return s
+    return struct.pack(MSG_HEADER_FORMAT, msgType, msgLen)
 
 #--- sendMsgDoServer
 def sendMsgDoServer(sock, argDict):
 
-    doDebug("sendMsgDoServer exp:%s order:%s start:%s" \
-            % (argDict["exp"], argDict["order"], argDict["start"]))
+    doDebug(
+        f'sendMsgDoServer exp:{argDict["exp"]} order:{argDict["order"]} start:{argDict["start"]}'
+    )
+
     s = createMsgHdr(sock, MSG_DO_SERVER, MSG_LEN[MSG_DO_SERVER])
     s += struct.pack(MSG_FORMAT[MSG_DO_SERVER], int(argDict["exp"]),
             int(argDict["order"]), int(argDict["start"]))
@@ -507,27 +503,26 @@ def sendMsgDoClient(sock, argDict):
         argDict["group"] = lastGroup
         lastGroup += 1
 
-    if not "server" in argDict:
+    if "server" not in argDict:
         doDebug("server argument missing in DO_CLIENT command")
         error("server argument missing in DO_CLIENT command")
 
     # Add default DC to server if necessary
     server = argDict["server"]
     if server.find(".") < 0:
-        server += "." + defaultHostSuffix
+        server += f".{defaultHostSuffix}"
 
-    doDebug("sndMsgDoClient exp=%s server=%s ca=%s dur=%s delay=%s instances:%s test=%s expName=%s" \
-            % (argDict["exp"], server, argDict["ca"], argDict["dur"], \
-               argDict["delay"], argDict["instances"], argDict["test"], \
-               argDict["expName"]))
+    doDebug(
+        f'sndMsgDoClient exp={argDict["exp"]} server={server} ca={argDict["ca"]} dur={argDict["dur"]} delay={argDict["delay"]} instances:{argDict["instances"]} test={argDict["test"]} expName={argDict["expName"]}'
+    )
+
     s = createMsgHdr(sock, MSG_DO_CLIENT, MSG_LEN[MSG_DO_CLIENT])
 
     # Support running stream tests from req test by using S as req size
     argTest = argDict["test"]
     argReq = argDict["req"]
-    doDebug("argTest=%s, argReq=%s" % (argTest, argReq))
-    if (argReq == 'S' or argReq == 's' or  argReq == 'STREAM' or
-        argReq == 'stream') and argTest == 'TCP_RR':
+    doDebug(f"argTest={argTest}, argReq={argReq}")
+    if argReq in ['S', 's', 'STREAM', 'stream'] and argTest == 'TCP_RR':
         argTest = 'TCP_STREAM'
         argReq = 'S'
         doDebug("*** Changing to STREAMING!")
@@ -572,13 +567,13 @@ def sendMsgSetModuleParams(sock, argDict):
     module = argDict['module']
     modParams = ''
     if module not in setModParamDict:
-        error('SET_MODULE_PARAMS: unknow module:%s' % module)
+        error(f'SET_MODULE_PARAMS: unknow module:{module}')
     for p in setModParamDict[module]:
         if p in argDict:
             if len(modParams) == 0:
-                modParams += "%s=%s" % (p, argDict[p])
+                modParams += f"{p}={argDict[p]}"
             else:
-                modParams += ",%s=%s" % (p, argDict[p])
+                modParams += f",{p}={argDict[p]}"
     s += struct.pack(MSG_FORMAT[MSG_SET_MODULE_PARAMS], module, modParams)
     return send(sock, s)
 
@@ -594,20 +589,18 @@ def sendMsgSetSysctl(sock, argDict):
             if valRanges is not None and len(vals) != len(valRanges):
                 error('SET_SYSCTL %s: expecting %d values but only got %d' % \
                         (s, len(valRanges), len(vals)))
-            i = 0
-            for v in vals:
+            for i, v in enumerate(vals):
                 if valRanges is not None and (int(v) < valRanges[i][0] \
                         or int(v) > valRanges[i][1]):
                     error('SET_SYSCTL %s: %s  out of range (%d:%d)' %\
                             (s, v, valRanges[i][0], valRanges[i][1]))
                 if i == 0 and len(sysctls) == 0:
-                    sysctls += "%s=%s" % (s, v)
+                    sysctls += f"{s}={v}"
                 elif i == 0:
-                    sysctls += " %s=%s" % (s, v)
+                    sysctls += f" {s}={v}"
                 else:
-                    sysctls += ",%s" % v
-                i += 1
-    doDebug("SET_SYSCTL: sysctls = %s" % sysctls)
+                    sysctls += f",{v}"
+    doDebug(f"SET_SYSCTL: sysctls = {sysctls}")
     if len(sysctls) > 0:
         msg += struct.pack(MSG_FORMAT[MSG_SET_SYSCTL], sysctls)
     return send(sock, msg)
@@ -615,14 +608,8 @@ def sendMsgSetSysctl(sock, argDict):
 #--- sendMsgSetNetem
 def sendMsgSetNetem(sock, argDict):
     s = createMsgHdr(sock, MSG_SET_NETEM, MSG_LEN[MSG_SET_NETEM])
-    if 'limit' in argDict:
-        limit = int(argDict['limit'])
-    else:
-        limit = 1000
-    if 'loss' in argDict:
-        loss = argDict['loss']
-    else:
-        loss = '0.0'
+    limit = int(argDict['limit']) if 'limit' in argDict else 1000
+    loss = argDict['loss'] if 'loss' in argDict else '0.0'
     s += struct.pack(MSG_FORMAT[MSG_SET_NETEM], int(argDict["netem_delay"]),
             limit, loss)
     return send(sock, s)

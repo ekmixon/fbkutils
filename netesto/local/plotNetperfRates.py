@@ -20,7 +20,7 @@ def processFile(inFilename):
 #		print 'Line: ', line
         kv = line.split('=')
 #		print '  kv: ', kv
-        if units == None and kv[0].find('NETPERF_UNITS') >= 0:
+        if units is None and kv[0].find('NETPERF_UNITS') >= 0:
             units = kv[1]
         elif kv[0].find('NETPERF_INTERVAL') >= 0:
             i = float(kv[1])
@@ -34,8 +34,7 @@ def processFile(inFilename):
             lastX = x
         elif kv[0].find('NETPERF_INTERIM_RESULT') >= 0:
             y = float(kv[1])
-            Y.append(y)
-            Y.append(y)
+            Y.extend((y, y))
         elif kv[0] == 'REQUEST_SIZE':
             reqSize = int(kv[1])
         elif kv[0] == 'RESPONSE_SIZE':
@@ -46,15 +45,9 @@ def processFile(inFilename):
             flow = kv[1]
 
     if units == 'Trans/s':
-        i = 0
-        if reqSize > replySize:
-            size = reqSize
-        else:
-            size = replySize
-        for y in Y:
+        size = reqSize if reqSize > replySize else replySize
+        for i, y in enumerate(Y):
             Y[i] = reqSize * 8 * y / 1000000
-            i += 1
-
     return X, Y, ca, flow
 
 def addGraphs(XList, YList, xmin=None, xmax=None):
@@ -63,7 +56,7 @@ def addGraphs(XList, YList, xmin=None, xmax=None):
         return None, None
 
     # Find minimum and maximum of X lists
-    if xmin == None or xmax == None:
+    if xmin is None or xmax is None:
         xmin = XList[0][0]
         xmax = XList[0][0]
         for X in XList:
@@ -74,12 +67,10 @@ def addGraphs(XList, YList, xmin=None, xmax=None):
     xincSum = 0.0
     xincCount = 0
     for X in XList:
-        i = 0
-        for x in X:
+        for i, x in enumerate(X):
             if i > 0:
                 xincSum += X[i] - X[i-1]
                 xincCount += 1
-            i += 1
     if xincCount == 0:
         return None, None
     xinc = xincSum / xincCount
@@ -87,12 +78,8 @@ def addGraphs(XList, YList, xmin=None, xmax=None):
         return None, None
     x = xmin
     n = int((xmax - xmin)/xinc + 1)
-    #print 'xmin:%.2f  xmax:%.2f  xinc:%.2f' % (xmin, xmax, xinc)
-
-    listIndex = -1
     firstTime = True
-    for X in XList:
-        listIndex += 1
+    for listIndex, X in enumerate(XList):
         Y = YList[listIndex]
         if firstTime:
             firstTime = False
@@ -123,17 +110,15 @@ def addGraphs(XList, YList, xmin=None, xmax=None):
             while True:
                 if x > xsum:
                     newXsum.append(xsum)
-                    newYsum.append(ysum + y)
                     sumIndex += 1
                 elif x < xsum:
                     newXsum.append(x)
-                    newYsum.append(ysum + y)
                     index += 1
                 else:
                     newXsum.append(x)
-                    newYsum.append(ysum + y)
                     index += 1
                     sumIndex += 1
+                newYsum.append(ysum + y)
                 if index < len(X):
                     if index >= 0:
                         x = X[index]
@@ -160,7 +145,6 @@ def addGraphs(XList, YList, xmin=None, xmax=None):
                     break
             Xsum = newXsum
             Ysum = newYsum
-
 #            for xnew in X:
 #                ynew = Y[sumIndex]
 #                if xnew > xold:

@@ -33,16 +33,16 @@ class TestShellHook(fake_filesystem_unittest.TestCase):
         """Can cd to change the working directory of a test"""
         self.assertNotEqual(FAKEDIR, os.getcwd())
         self.assertEqual(self.original_dir, os.getcwd())
-        self.hook.before({"before": ["cd {}".format(FAKEDIR)]})
+        self.hook.before({"before": [f"cd {FAKEDIR}"]})
         self.assertEqual(FAKEDIR, os.getcwd())
 
     def test_cd_pre_reset(self):
         """cd in a before hook is reset in post"""
         self.assertNotEqual(FAKEDIR, os.getcwd())
         self.assertEqual(self.original_dir, os.getcwd())
-        self.hook.before({"before": ["cd {}".format(FAKEDIR)]})
+        self.hook.before({"before": [f"cd {FAKEDIR}"]})
         self.assertEqual(FAKEDIR, os.getcwd())
-        self.hook.after({"before": ["cd {}".format(FAKEDIR)]})
+        self.hook.after({"before": [f"cd {FAKEDIR}"]})
         self.assertEqual(self.original_dir, os.getcwd())
 
     @patch("subprocess.check_call")

@@ -11,7 +11,8 @@ import threading
 import time
 import os
 import cgi
-import cgitb; cgitb.enable()
+import cgitb
+cgitb.enable()
 import socket
 from string import Template
 
@@ -47,8 +48,7 @@ formatList = []
 defaultFormatFlag = False
 defaultFormat = 2
 showColFormattingFlag = False
-CommandDict = {}
-CommandDict['rowColorChange'] = ''
+CommandDict = {'rowColorChange': ''}
 SelectedRowList = []
 SelectedColList = []
 SelectedColDict = {}
@@ -59,15 +59,13 @@ image = ''
 Rows = []
 Cols = []
 if Mode == 'web':
-  flog = open('log/log'+foutName+'.out', 'w')
+  flog = open(f'log/log{foutName}.out', 'w')
 else:
 #  flog = open('/dev/null', 'w')
   flog = open('exp.log', 'w')
 fieldDict = {}
 formatList = []
 
-saveIgnoreDict = {}
-defaultVals = {}
 History = []
 SelectList = []
 AveragedRows = []
@@ -88,26 +86,25 @@ PlotRatioFlag = 0
 #rowColorChangeVal = 'exp'
 rowColorChangeVal = 'ca'
 
-# Global list or Dict initialiation
-#
-saveIgnoreDict['Rows'] = 'x'
-#saveIgnoreDict['Cols'] = 'x'
-saveIgnoreDict['File'] = 'x'
-saveIgnoreDict['Path'] = 'x'
-saveIgnoreDict['SaveComs'] = 'x'
-saveIgnoreDict['ReadCommands'] = 'x'
-saveIgnoreDict['StartMacro'] = 'x'
-saveIgnoreDict['EndMacro'] = 'x'
-saveIgnoreDict['SaveMacro'] = 'x'
-saveIgnoreDict['DoMacro'] = 'x'
-saveIgnoreDict['SavingMacro'] = 'x'
-
-defaultVals['Y1LogScale'] = 'Auto'
-defaultVals['PlotRatio'] = 'Off'
-defaultVals['BkgLevel'] = '0.8'
-defaultVals['PlotPercent'] = 'Off'
-#defaultVals['xUniform'] = 'On'
-defaultVals['Y2LogScale'] = 'Auto'
+saveIgnoreDict = {
+    'Rows': 'x',
+    'File': 'x',
+    'Path': 'x',
+    'SaveComs': 'x',
+    'ReadCommands': 'x',
+    'StartMacro': 'x',
+    'EndMacro': 'x',
+    'SaveMacro': 'x',
+    'DoMacro': 'x',
+    'SavingMacro': 'x',
+}
+defaultVals = {
+    'Y1LogScale': 'Auto',
+    'PlotRatio': 'Off',
+    'BkgLevel': '0.8',
+    'PlotPercent': 'Off',
+    'Y2LogScale': 'Auto',
+}
 
 #--- rmSpaces
 def rmSpaces(s):
@@ -160,13 +157,12 @@ def sortListCmp(s1, s2):
       return 0
     else:
       return 1
+  elif s1[0] < s2[0]:
+    return -1
+  elif s1[0] == s2[0]:
+    return 0
   else:
-    if s1[0] < s2[0]:
-      return -1
-    elif s1[0] == s2[0]:
-      return 0
-    else:
-      return 1
+    return 1
 
 #--- sortListRevCmp
 def sortListRevCmp(s1, s2):
@@ -179,13 +175,12 @@ def sortListRevCmp(s1, s2):
       return 0
     else:
       return -1
+  elif s1[0] < s2[0]:
+    return -1
+  elif s1[0] == s2[0]:
+    return 0
   else:
-    if s1[0] < s2[0]:
-      return -1
-    elif s1[0] == s2[0]:
-      return 0
-    else:
-      return 1
+    return 1
 
 #--- getFieldIndex
 def getFieldIndex(s):
@@ -195,30 +190,25 @@ def getFieldIndex(s):
 def resetSelectedColDict():
   global SelectedColList, SelectedColDict
 
-  SelectedColDict = {}
-  for field in SelectedColList:
-    SelectedColDict[field] = 1
+  SelectedColDict = {field: 1 for field in SelectedColList}
   return
 
 #--- formatFloat
 def formatFloat(f):
-  if f <= 10:
-    rv = float(int(100.0*f))/100.0
-  elif f <= 100:
-    rv = float(int(100.0*f))/100.0
+  if f <= 10 or f <= 100:
+    return float(int(100.0*f))/100.0
   elif f <= 1000:
-    rv = float(int(10.0*f))/10.0
+    return float(int(10.0*f))/10.0
   else:
-    rv = float(int(f))
-  return rv
+    return float(int(f))
 
 #--- writeSpaces
 def writeSpaces(f, spaces, text=''):
   i = 0
   line = ''
   while i < spaces:
-    i = i + 1
-    line = line + '&nbsp '
+    i += 1
+    line = f'{line}&nbsp '
   f.write(line+text)
   return
 
@@ -259,11 +249,11 @@ def writeSelectInput(f, label, name, values, selection, spaces, newLine, redoFla
 #--- writeCheckboxInput
 def writeCheckboxInput(f, label, name, value, newLine, callFlag, helpText=''):
   if label != '':
-    f.write('&nbsp ' + label)
+    f.write(f'&nbsp {label}')
   f.write('<input type=checkbox name="'+name+'" ')
   if name in ReadCommandDict  and  value == '':
     value = ReadCommandDict[name]
-  if value != ''  and  value != 'F' and value != 'f':
+  if value not in ['', 'F', 'f']:
     f.write('CHECKED ')
   if callFlag:
     f.write('onclick="redo()" ')
@@ -460,12 +450,11 @@ def appendCsvFile(fname):
 def getHex(s):
   d = ord(s[0])
   if d <= ord('9'):
-    rv = d - ord('0')
+    return d - ord('0')
   elif d <= ord('Z'):
-    rv = d - ord('A') + 10
+    return d - ord('A') + 10
   else:
-    rv = d - ord('a') + 10
-  return rv
+    return d - ord('a') + 10
 
 #--- replaceHex
 def replaceHex(line):
@@ -473,13 +462,10 @@ def replaceHex(line):
   n = 0
   while i >= 0 and n < 100000:
     c = chr(getHex(line[i+1])*16 + getHex(line[i+2]))
-    line = line[0:i] + c + line[i+3:]
+    line = line[:i] + c + line[i+3:]
     j = line[i+1:].find('%')
-    if j >= 0:
-      i = i + 1 + j
-    else:
-      i = -1
-    n = n + 1
+    i = i + 1 + j if j >= 0 else -1
+    n += 1
   return line
 
 #--- getSelectedRowsNOT

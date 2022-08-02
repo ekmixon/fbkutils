@@ -31,9 +31,7 @@ class BaseFactory(object):
             name (str): name of the item
         """
         if name not in self.classes:
-            raise KeyError(
-                'No type "{}". ' "Did you forget to register() it?".format(name)
-            )
+            raise KeyError(f'No type "{name}". Did you forget to register() it?')
         return self.classes[name]()
 
     def register(self, name, subclass):

@@ -47,25 +47,24 @@ def processFile(f):
 
     #print 'processing:', f
     fieldDict = {}
-    fin = open(f, 'r')
-    for line in fin:
-        line = line.strip()
-        kv = line.split(':')
-        if len(kv) < 2:
-            continue
-        key, val = kv
-        fieldDict[key] = val
-        if key == 'ca' and val == 'nv':
-            nvFlag = True
-        if key == 'host' or key == 'server':
-            i = val.find('.')
-            if i >= 0:
-                mp = val[i:]
-                if machinePath == None:
-                    machinePath = mp
-                elif machinePath != mp:
-                    machinePath = ''
-    fin.close()
+    with open(f, 'r') as fin:
+        for line in fin:
+            line = line.strip()
+            kv = line.split(':')
+            if len(kv) < 2:
+                continue
+            key, val = kv
+            fieldDict[key] = val
+            if key == 'ca' and val == 'nv':
+                nvFlag = True
+            if key in ['host', 'server']:
+                i = val.find('.')
+                if i >= 0:
+                    mp = val[i:]
+                    if machinePath is None:
+                        machinePath = mp
+                    elif machinePath != mp:
+                        machinePath = ''
     #print '  len:', len(fieldDict)
     return fieldDict
 
@@ -86,7 +85,7 @@ def processFields(fieldDict):
             rates = fieldDict['rateMin'] + '/' + rates + '/' + \
                 fieldDict['rateMax']
         else:
-            rates = '?/' + rates + '/?'
+            rates = f'?/{rates}/?'
         fieldDict['min/avg/max Rates'] = rates
     if 'meanLatency' in fieldDict:
         lats = fieldDict['meanLatency']
@@ -94,21 +93,20 @@ def processFields(fieldDict):
             lats = fieldDict['minLatency'] + '/' + lats + '/' + \
                 fieldDict['maxLatency']
         else:
-            lats = '?/' + lats + '/?'
+            lats = f'?/{lats}/?'
         fieldDict['min/mean/max Latencies'] = lats
     if 'p50Latency' in fieldDict:
         plats = fieldDict['p50Latency']
         if 'p90Latency' in fieldDict and 'p99Latency' in fieldDict:
-            plats = plats + '/' + fieldDict['p90Latency'] + '/' + \
-                fieldDict['p99Latency']
+            plats = (f'{plats}/' + fieldDict['p90Latency'] + '/' + fieldDict['p99Latency'])
         else:
-            plats = plats + '/?/?'
+            plats = f'{plats}/?/?'
         fieldDict['p50/p90/p99 Latencies'] = plats
     return fieldDict
 
 
 def writeHtmlHeader(exp):
-    fout = open(exp + '/' + 'exp.html', 'w')
+    fout = open(f'{exp}/exp.html', 'w')
     for line in htmlHeader:
         fout.write('%s\n' % line)
     return fout
@@ -119,12 +117,12 @@ fieldDictList = []
 
 for f in files:
     if f.find('.exp.out') >= 0 and f.find('all') < 0:
-        fieldDict = processFile(exp + '/' + f)
+        fieldDict = processFile(f'{exp}/{f}')
         if len(fieldDict) > 0:
             fieldDict = processFields(fieldDict)
             fieldDictList.append(fieldDict)
 
-if len(fieldDictList) == 0:
+if not fieldDictList:
     #print 'len(fieldDictList) == 0!!'
     sys.exit(0)
 
@@ -138,7 +136,7 @@ fout.write(('  <h2>Exp:%s %s &nbsp &nbsp &nbsp &nbsp ' +
     (exp, fieldDictList[0]['expName'], prevExp, nextExp))
 fout.write('  <table id="t01">\n')
 
-if machinePath != '' and machinePath != None:
+if machinePath not in ['', None]:
     for fd in fieldDictList:
         if 'client' in fd:
             v = fd['client']
@@ -150,16 +148,10 @@ if machinePath != '' and machinePath != None:
             fd['server'] = v[:i]
 
 for field in fieldList:
-    if field == 'group':
-        tx = 'th'
-    else:
-        tx = 'td'
+    tx = 'th' if field == 'group' else 'td'
     fout.write('    <tr>\n      <%s><b>%s</b></%s>\n' % (tx, field, tx))
     for fd in fieldDictList:
-        if field in fd:
-            v = fd[field]
-        else:
-            v = ' '
+        v = fd[field] if field in fd else ' '
         fout.write('      <%s>%s</%s>\n' % (tx, v, tx))
     fout.write('    </tr>\n')
 
@@ -177,6 +169,5 @@ fout.close()
 
 expName = fieldDictList[0]['expName']
 
-fout = open('ExpList.html', 'a')
-fout.write('<p><a href="%s/exp.html"> %s %s</a></p>\n' % (exp, exp, expName))
-fout.close()
+with open('ExpList.html', 'a') as fout:
+    fout.write('<p><a href="%s/exp.html"> %s %s</a></p>\n' % (exp, exp, expName))

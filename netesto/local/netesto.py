@@ -129,10 +129,8 @@ funName = None		# Name of function being defined
 #--- init
 def init():
     global MSG_HEADER_LEN
-    k = 0
-    for f in MSG_FORMAT:
+    for k, f in enumerate(MSG_FORMAT):
         MSG_LEN[k] = struct.calcsize(f)
-        k += 1
     MSG_HEADER_LEN=struct.calcsize(MSG_HEADER_FORMAT)
 
 #--- doDebug
@@ -212,12 +210,12 @@ def mathIntegerExpression0(s, pos):
         elif c == '(':
             num,pos = mathIntegerExpression0(s, pos+1)
         if c == '+' or c == '-'  or c =='*' or c =='/' or c ==')' or pos == n-1:
-            if prevOp == '+':
+            if prevOp == '*':
+                stack.append(stack.pop() * num)
+            elif prevOp == '+':
                 stack.append(num)
             elif prevOp == '-':
                 stack.append(-num)
-            elif prevOp == '*':
-                stack.append(stack.pop() * num)
             elif prevOp == '/':
                 if num == 0:
                     error("Division by zero in SET command")
@@ -226,12 +224,12 @@ def mathIntegerExpression0(s, pos):
             prevOp = c
             num = 0
         elif c != '(' and (c < '0' or c > '9'):
-            error("Unknown character in mathExperssion: " + c)
+            error(f"Unknown character in mathExperssion: {c}")
         pos += 1
         if c == ')':
             break
     rv = 0
-    while len(stack) > 0:
+    while stack:
         rv += stack.pop()
     return rv,pos-1
 
@@ -242,16 +240,13 @@ def mathIntegerExpression(s):
 
 #--- sockName
 def sockName(sock):
-    if id(sock) in socketDict:
-        return socketDict[id(sock)]
-    else:
-        return 'NOT FOUND'
+    return socketDict[id(sock)] if id(sock) in socketDict else 'NOT FOUND'
 
 #--- closeClientSocket
 def closeClientSocket(sock, closeFlag):
     global socketDict, hostDict
 
-    doDebug("closing client socket " + sockName(sock))
+    doDebug(f"closing client socket {sockName(sock)}")
     hostDict[socketDict[id(sock)]] = None
     socketDict[id(sock)] = 'CLOSED'
     socketBufferDict[id(sock)] = ''
@@ -262,7 +257,7 @@ def closeClientSocket(sock, closeFlag):
 def closeAServerSocket(sock, closeFlag):
     global socketDict, readList
 
-    doDebug("closing server socket " + sockName(sock))
+    doDebug(f"closing server socket {sockName(sock)}")
     readList.remove(sock)
     socketDict[id(sock)] = "CLOSED"
     socketBufferDict[id(sock)] = ''
@@ -274,13 +269,13 @@ def closeAServerSocket(sock, closeFlag):
 def runCmd(cmdStr, outFilename=None):
     global noRunFlag
 
-    doDebug("runCmd: " + cmdStr + " outFile:" + str(outFilename))
+    doDebug(f"runCmd: {cmdStr} outFile:{str(outFilename)}")
     if noRunFlag:
         doDebug("-- Skipping beause of noRunFlag")
         return
     args = cmdStr.split()
     #subprocess.call(args)
-    if outFilename == None:
+    if outFilename is None:
         subprocess.Popen(args, ).pid
     else:
         outFile = open(outFilename, 'w')
@@ -320,92 +315,94 @@ def processExp(subdir):
     netperfList = []
     for file in files:
         if file.find('monitor') >= 0:
-            monitorList.append(subdir + '/' + file)
+            monitorList.append(f'{subdir}/{file}')
         elif file.find('ss') >= 0 and file.find('.out') >= 0:
-            monitorList.append(subdir + '/' + file)
+            monitorList.append(f'{subdir}/{file}')
         elif file.find('netperf') >= 0:
-            netperfList.append(subdir + '/' + file)
-    doDebug("monitorList: " + str(monitorList))
+            netperfList.append(f'{subdir}/{file}')
+    doDebug(f"monitorList: {str(monitorList)}")
 
-    cmd = ["./plotMonitor.py", "bytes_acked"]
-    cmd.extend(monitorList)
-    doDebug("Calling: " + str(cmd))
+    cmd = ["./plotMonitor.py", "bytes_acked", *monitorList]
+    doDebug(f"Calling: {str(cmd)}")
     subprocess.call(cmd)
     cmd = ["./plotMonitor.py", "cwnd"]
     cmd.extend(monitorList)
-    doDebug("Calling: " + str(cmd))
+    doDebug(f"Calling: {str(cmd)}")
     subprocess.call(cmd)
-    cmd = ["./plotMonitor.py", "unacked"]
-    cmd.extend(monitorList)
-    doDebug("Calling: " + str(cmd))
+    cmd = ["./plotMonitor.py", "unacked", *monitorList]
+    doDebug(f"Calling: {str(cmd)}")
     subprocess.call(cmd)
     cmd = ["./plotMonitor.py", "rtt"]
     cmd.extend(monitorList)
-    doDebug("Calling: " + str(cmd))
+    doDebug(f"Calling: {str(cmd)}")
     subprocess.call(cmd)
-    cmd = ["./plotMonitor.py", "minrtt"]
-    cmd.extend(monitorList)
-    doDebug("Calling: " + str(cmd))
+    cmd = ["./plotMonitor.py", "minrtt", *monitorList]
+    doDebug(f"Calling: {str(cmd)}")
     subprocess.call(cmd)
     cmd = ["./plotMonitor.py", "retrans"]
     cmd.extend(monitorList)
-    doDebug("Calling: " + str(cmd))
+    doDebug(f"Calling: {str(cmd)}")
     subprocess.call(cmd)
 
-    cmd = ["./plotNetperfRates.py"]
-    cmd.extend(netperfList)
-    doDebug("Calling: " + str(cmd))
+    cmd = ["./plotNetperfRates.py", *netperfList]
+    doDebug(f"Calling: {str(cmd)}")
     subprocess.call(cmd)
     cmd = ["./makeResultsPage.py", subdir]
-    doDebug("Calling: " + str(cmd))
+    doDebug(f"Calling: {str(cmd)}")
     subprocess.call(cmd)
 
     if not os.path.isfile('exp.csv'):
         p = os.getcwd()
         d = p[p.rfind('/'):]
-        cmd = ["./processExp.py",
-                "-c",
-                "--path=/Library/webServer/Documents/Exp" + d,
-                "--relPath=/Exp" + d]
-        doDebug("Calling: " + str(cmd))
+        cmd = [
+            "./processExp.py",
+            "-c",
+            f"--path=/Library/webServer/Documents/Exp{d}",
+            f"--relPath=/Exp{d}",
+        ]
+
+        doDebug(f"Calling: {str(cmd)}")
         subprocess.call(cmd)
 
     n = 0
     tx_packets_sum = 0
     retrans_packets_sum = 0
-    fout = open(subdir + '/all.exp.out', 'w')
-    for file in files:
-        if file.find('.exp.out') < 0:
-            continue
-        n += 1
-        fname = subdir + '/' + file
-        fin = open(fname, 'r')
-        for line in fin:
-            line = line.strip()
-            kv = line.split(':')
-            if len(kv) >= 2:
-                k, v = kv
-                if k == 'exp':
-                    v = v[:v.find('.')] + '.0'
-                elif k == 'client-tx-packets':
-                     tx_packets_sum += float(v)
-                elif k == 'retrans_total':
-                     retrans_packets_sum += float(v)
-                fout.write("%s:%s\n" % (k, v))
-        fin.close()
-
-    tx_packets_sum += 1
-    retransPktsPercent = 100.0 * retrans_packets_sum / tx_packets_sum
-    fout.write("retransPkts%%:%.2f\n" % (retransPktsPercent))
-    fout.write("-----\n")
-    fout.close()
+    with open(f'{subdir}/all.exp.out', 'w') as fout:
+        for file in files:
+            if file.find('.exp.out') < 0:
+                continue
+            n += 1
+            fname = f'{subdir}/{file}'
+            with open(fname, 'r') as fin:
+                for line in fin:
+                    line = line.strip()
+                    kv = line.split(':')
+                    if len(kv) >= 2:
+                        k, v = kv
+                        if k == 'exp':
+                            v = v[:v.find('.')] + '.0'
+                        elif k == 'client-tx-packets':
+                             tx_packets_sum += float(v)
+                        elif k == 'retrans_total':
+                             retrans_packets_sum += float(v)
+                        fout.write("%s:%s\n" % (k, v))
+        tx_packets_sum += 1
+        retransPktsPercent = 100.0 * retrans_packets_sum / tx_packets_sum
+        fout.write("retransPkts%%:%.2f\n" % (retransPktsPercent))
+        fout.write("-----\n")
     if n >= 1:
-        fname = subdir + '/all.exp.out'
-        if descStr == None:
-            cmd = ["./processExp.py", "-a", "--rfile="+fname, "--other="+otherStr]
+        fname = f'{subdir}/all.exp.out'
+        if descStr is None:
+            cmd = ["./processExp.py", "-a", f"--rfile={fname}", f"--other={otherStr}"]
         else:
-            cmd = ["./processExp.py", "-a", "--rfile="+fname,
-                   "--desc="+descStr, "--other="+otherStr]
+            cmd = [
+                "./processExp.py",
+                "-a",
+                f"--rfile={fname}",
+                "--desc=" + descStr,
+                "--other=" + otherStr,
+            ]
+
         doDebug("Calling: " + str(cmd))
         subprocess.call(cmd)
 
@@ -415,7 +412,7 @@ def processExp(subdir):
     for file in files:
         if file.find('.exp.out') > 0:
             fname = subdir + '/' + file
-            if descStr == None:
+            if descStr is None:
                 cmd = ["./processExp.py", "-a", "--rfile="+fname,
                         "--other="+otherStr]
             else:

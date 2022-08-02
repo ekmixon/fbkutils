@@ -34,8 +34,7 @@ class LtpSuite(Suite):
             names = []
             for c in cases:
                 name = c.name
-                match = test_case_re.match(name)
-                if match:
+                if match := test_case_re.match(name):
                     name = match.group(1)
                     logger.warning(
                         "LTP does not support running with a granularity less "
@@ -66,7 +65,7 @@ class LtpSuite(Suite):
                     match = test_format_re.match(status_line)
                     if not match:
                         continue
-                    case_name = match.group(1) + "_" + match.group(2)
+                    case_name = f"{match.group(1)}_{match.group(2)}"
                     status_name = match.group(3)
                     status = TestStatus.SKIPPED
                     if status_name in ("TFAIL", "TBROK", "TWARN"):
@@ -78,8 +77,8 @@ class LtpSuite(Suite):
                     else:
                         logger.warning(f"Encountered unknown status '{status_name}'")
                         continue
-                    case = TestCaseResult(
+                    yield TestCaseResult(
                         name=case_name, status=status, details="\n".join(output)
                     )
-                    yield case
+
             case_lines.append(line)

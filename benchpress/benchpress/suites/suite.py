@@ -33,11 +33,11 @@ class SuiteMeta(type):
     suite_classes: Dict[str, Type["Suite"]] = {}
 
     @classmethod
-    def instantiate(metacls, config: Dict[str, Any]) -> "Suite":
+    def instantiate(cls, config: Dict[str, Any]) -> "Suite":
         runner = config.get("runner", "generic")
-        if runner not in metacls.suite_classes:
+        if runner not in cls.suite_classes:
             raise RuntimeError(f'No such suite runner "{runner}"')
-        suite_cls = metacls.suite_classes[runner]
+        suite_cls = cls.suite_classes[runner]
         return suite_cls(config)
 
     def __init__(cls, name, bases, namespace, **kwargs):
@@ -56,7 +56,7 @@ class Suite(metaclass=SuiteMeta):
         self.binary = config["path"]
         self.args = self.arg_list(config["args"])
         self.check_returncode = config.get("check_returncode", True)
-        self.timeout = config.get("timeout", None)
+        self.timeout = config.get("timeout")
         self.timeout_is_pass = config.get("timeout_is_pass", False)
         # if tee_output is True, the stdout and stderr commands of the child
         # process will be copied onto the stdout and stderr of benchpress
@@ -77,26 +77,26 @@ class Suite(metaclass=SuiteMeta):
 
         lst = []
         for key, val in args.items():
-            lst.append("--" + key)
+            lst.append(f"--{key}")
             if val is not None:
                 lst.append(str(val))
         return lst
 
     def run_pre_hooks(self):
-        logger.info('Running setup hooks for "{}"'.format(self.name))
+        logger.info(f'Running setup hooks for "{self.name}"')
         for hook, opts in self.hooks:
             logger.info("Running %s %s", hook, opts)
             hook.before(opts, self)
 
     def run_post_hooks(self):
-        logger.info('Running cleanup hooks for "{}"'.format(self.name))
+        logger.info(f'Running cleanup hooks for "{self.name}"')
         # run hooks in reverse this time so it operates like a stack
         for hook, opts in reversed(self.hooks):
             hook.after(opts, self)
 
     def run_to_completion(self) -> subprocess.CompletedProcess:
         """run_to_completion can be used when streaming output is not requried"""
-        logger.info('Starting "{}"'.format(self.name))
+        logger.info(f'Starting "{self.name}"')
         cmd = [self.binary] + self.args
         try:
             proc = subprocess.Popen(
@@ -107,11 +107,10 @@ class Suite(metaclass=SuiteMeta):
             # process itself (this is how subprocess.run works)
             proc.stdout = stdout
             proc.stderr = stderr
-            if self.check_returncode:
-                if proc.returncode != 0:
-                    raise CalledProcessError(
-                        proc.returncode, cmd, output=stdout, stderr=stderr
-                    )
+            if self.check_returncode and proc.returncode != 0:
+                raise CalledProcessError(
+                    proc.returncode, cmd, output=stdout, stderr=stderr
+                )
             # optionally copy stdout/err of the child process to our own
             if self.tee_output:
                 # default to stdout if no filename given
@@ -130,7 +129,7 @@ class Suite(metaclass=SuiteMeta):
 
             return proc
         except OSError as e:
-            logger.error('"{}" failed ({})'.format(self.name, e))
+            logger.error(f'"{self.name}" failed ({e})')
             if e.errno == errno.ENOENT:
                 logger.error("Binary not found, did you forget to install it?")
             raise  # make sure it passes the exception up the chain
@@ -164,9 +163,7 @@ class Suite(metaclass=SuiteMeta):
         except TimeoutExpired as e:
             stdout, stderr = e.stdout, e.stderr
             if not self.timeout_is_pass:
-                logger.error(
-                    "Job timed out\n" "stdout:\n{}\nstderr:\n{}".format(stdout, stderr)
-                )
+                logger.error(f"Job timed out\nstdout:\n{stdout}\nstderr:\n{stderr}")
                 raise
             # if timeout was success, parse the output
             # we cannot get output from a timed out process that has children
